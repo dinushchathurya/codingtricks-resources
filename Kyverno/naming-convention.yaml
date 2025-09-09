@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: naming-convention
+spec:
+  validationFailureAction: enforce
+  rules:
+  - name: check-name
+    match:
+      any:
+      - resources:
+          kinds:
+          - Deployment
+          - Service
+    validate:
+      message: "Resource names must follow naming convention (lowercase, hyphens only)"
+      pattern:
+        metadata:
+          name: "^[a-z0-9-]+$"
