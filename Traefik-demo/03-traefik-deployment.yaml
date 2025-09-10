@@ -1,23 +1,8 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: traefik-system
----
-# ServiceAccount
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: traefik
-  namespace: traefik-system
----
-# Traefik Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: traefik
   namespace: traefik-system
-  labels:
-    app: traefik
 spec:
   replicas: 2
   selector:
@@ -31,61 +16,25 @@ spec:
       serviceAccountName: traefik
       containers:
       - name: traefik
-        image: traefik:v3.0
+        image: traefik:v3.1
         args:
-          # Basic configuration
-          - --global.checkNewVersion=false
-          - --global.sendAnonymousUsage=false
-          
-          # Entry points
-          - --entrypoints.web.address=:8000
-          - --entrypoints.websecure.address=:8443
+          - --entrypoints.web.address=:80
+          - --entrypoints.websecure.address=:443
           - --entrypoints.traefik.address=:9000
-          
-          # Enable API and dashboard
-          - --api.insecure=true
           - --api.dashboard=true
-          
-          # Kubernetes integration
-          - --providers.kubernetesCRD
-          - --providers.kubernetesIngress
-          
-          # Let's Encrypt ACME (optional for learning, requires public domain)
+          - --api.insecure=true
+          - --providers.kubernetescrd
+          - --providers.kubernetescrd.ingressclass=traefik
           - --certificatesresolvers.letsencrypt.acme.email=your-email@example.com
           - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
           - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-          
-          # Logging & metrics
-          - --log.level=INFO
-          - --accesslog=true
-          - --metrics.prometheus=true
-          - --ping=true
         ports:
-        - name: web
-          containerPort: 8000
-        - name: websecure
-          containerPort: 8443
-        - name: traefik
-          containerPort: 9000
-        livenessProbe:
-          httpGet:
-            path: /ping
-            port: 9000
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ping
-            port: 9000
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        resources:
-          limits:
-            cpu: 300m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
+        - containerPort: 80
+          name: web
+        - containerPort: 443
+          name: websecure
+        - containerPort: 9000
+          name: traefik
         volumeMounts:
         - name: data
           mountPath: /data
@@ -93,38 +42,33 @@ spec:
       - name: data
         emptyDir: {}
 ---
-# Traefik Service (NodePort for local Kind)
 apiVersion: v1
 kind: Service
 metadata:
   name: traefik
   namespace: traefik-system
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: traefik
   ports:
-  - name: web
-    port: 80
-    targetPort: 8000
-    nodePort: 30080
-  - name: websecure
-    port: 443
-    targetPort: 8443
-    nodePort: 30443
+    - name: web
+      port: 80
+      targetPort: 80
+    - name: websecure
+      port: 443
+      targetPort: 443
 ---
-# Traefik Dashboard Service
 apiVersion: v1
 kind: Service
 metadata:
   name: traefik-dashboard
   namespace: traefik-system
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: traefik
   ports:
-  - name: dashboard
-    port: 9000
-    targetPort: 9000
-    nodePort: 30900
+    - name: dashboard
+      port: 9000
+      targetPort: 9000

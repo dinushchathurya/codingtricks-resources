@@ -9,22 +9,22 @@ kind: ClusterRole
 metadata:
   name: traefik
 rules:
-  # Allow Traefik to read services and endpoints
   - apiGroups: [""]
     resources: ["services", "endpoints", "secrets"]
-    verbs: ["get", "list", "watch"]
-  # Allow Traefik to read ingress resources
-  - apiGroups: ["extensions", "networking.k8s.io"]
+    verbs: ["get","list","watch"]
+  - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses", "ingressclasses"]
-    verbs: ["get", "list", "watch"]
-  # Allow Traefik to update ingress status
-  - apiGroups: ["extensions", "networking.k8s.io"]
+    verbs: ["get","list","watch"]
+  - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses/status"]
     verbs: ["update"]
-  # Allow Traefik to read its custom resources
   - apiGroups: ["traefik.containo.us"]
     resources: ["*"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get","list","watch"]
+  # Fix: Add permissions for traefik.io API group
+  - apiGroups: ["traefik.io"]
+    resources: ["*"]
+    verbs: ["get","list","watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -35,6 +35,13 @@ roleRef:
   kind: ClusterRole
   name: traefik
 subjects:
-  - kind: ServiceAccount
-    name: traefik
-    namespace: traefik-system
+- kind: ServiceAccount
+  name: traefik
+  namespace: traefik-system
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: traefik
+spec:
+  controller: traefik.io/ingress-controller
