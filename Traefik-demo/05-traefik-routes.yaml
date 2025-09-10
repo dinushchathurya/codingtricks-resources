@@ -1,0 +1,70 @@
+# Route for the main website (frontend)
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: frontend-route
+  namespace: bookstore
+spec:
+  entryPoints:
+    - web  # HTTP traffic on port 80
+  routes:
+  - match: Host(`bookstore.local`) || Host(`localhost`)
+    kind: Rule
+    services:
+    - name: frontend
+      port: 80
+---
+# Route for API endpoints
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api-route
+  namespace: bookstore
+spec:
+  entryPoints:
+    - web
+  routes:
+  # Route /api/* requests to our API service
+  - match: (Host(`bookstore.local`) || Host(`localhost`)) && PathPrefix(`/api`)
+    kind: Rule
+    # Remove /api prefix before sending to backend
+    middlewares:
+    - name: api-stripprefix
+    services:
+    - name: api
+      port: 80
+---
+# Route for user service
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: user-route
+  namespace: bookstore
+spec:
+  entryPoints:
+    - web
+  routes:
+  # Route /users/* requests to user service
+  - match: (Host(`bookstore.local`) || Host(`localhost`)) && PathPrefix(`/users`)
+    kind: Rule
+    middlewares:
+    - name: user-stripprefix
+    services:
+    - name: user-service
+      port: 80
+---
+# Route for Traefik dashboard
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dashboard-route
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`traefik.local`) || (Host(`localhost`) && PathPrefix(`/dashboard`))
+    kind: Rule
+    services:
+    - name: traefik-dashboard
+      port: 9000
