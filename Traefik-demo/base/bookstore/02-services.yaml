@@ -1,0 +1,313 @@
+# Filename: base/bookstore/02-services.yaml
+
+# Frontend Service - What customers see
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: bookstore
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        version: v1
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: frontend-html
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+  namespace: bookstore
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Bookstore Frontend</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 8px; }
+            .content { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .api-test { background: #e8f5e8; padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 4px solid #4CAF50; }
+            .link { color: #4CAF50; text-decoration: none; font-weight: bold; }
+            .link:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Welcome to Traefik Demo</h1>
+            <p>Microservices Demo with Traefik</p>
+        </div>
+        <div class="content">
+            <h2>Frontend Service</h2>
+            <p>This page is served by our frontend microservice running in Kubernetes with Traefik routing!</p>
+            <div class="api-test">
+                <h3>API Endpoints to Test</h3>
+                <ul>
+                    <li><a href="/api/books" class="link">/api/books</a> - View all books</li>
+                    <li><a href="/api/health" class="link">/api/health</a> - API health check</li>
+                    <li><a href="/users/profile" class="link">/users/profile</a> - User profile</li>
+                    <li><a href="/users/login" class="link">/users/login</a> - User login info</li>
+                    <li><a href="/dashboard/" class="link">/dashboard/</a> - Traefik dashboard</li>
+                </ul>
+            </div>
+            <div class="content">
+                <h3>Architecture</h3>
+                <p>This demo shows:</p>
+                <ul>
+                    <li>Frontend service (this page)</li>
+                    <li>API service for books</li>
+                    <li>User service for authentication</li>
+                    <li>Traefik as ingress controller</li>
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: bookstore
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# API Service - Handles book data
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: bookstore
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        version: v1
+    spec:
+      containers:
+      - name: api
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: api-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: api-data
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: api-config
+        configMap:
+          name: api-nginx-config
+      - name: api-data
+        configMap:
+          name: api-data
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-nginx-config
+  namespace: bookstore
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        
+        # Add debug headers
+        add_header X-Debug-Service "bookstore-api" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        
+        # Handle /books endpoint - serve the JSON directly
+        location /books {
+            add_header Content-Type "application/json";
+            alias /usr/share/nginx/html/books.json;
+        }
+        
+        # Handle /health endpoint (after /api prefix is stripped)
+        location /health {
+            add_header Content-Type "application/json";
+            return 200 '{"status":"healthy","service":"bookstore-api","timestamp":"2025-09-16T12:00:00Z"}';
+        }
+        
+        # Root endpoint (/) - shows API info
+        location / {
+            add_header Content-Type "application/json";
+            return 200 '{"message":"Bookstore API v1","service":"api","endpoints":["/books","/health"],"note":"Traefik strips /api prefix"}';
+        }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-data
+  namespace: bookstore
+data:
+  books.json: |
+    {
+      "status": "success",
+      "service": "bookstore-api",
+      "books": [
+        {
+          "id": 1,
+          "title": "Kubernetes for Beginners",
+          "author": "Tech Author",
+          "price": 29.99,
+          "category": "Technology",
+          "stock": 15
+        },
+        {
+          "id": 2,
+          "title": "Microservices Patterns",
+          "author": "Architecture Expert", 
+          "price": 39.99,
+          "category": "Technology",
+          "stock": 8
+        },
+        {
+          "id": 3,
+          "title": "The DevOps Handbook",
+          "author": "DevOps Team",
+          "price": 34.99,
+          "category": "Operations",
+          "stock": 12
+        },
+        {
+          "id": 4,
+          "title": "Traefik in Action",
+          "author": "Proxy Expert",
+          "price": 44.99,
+          "category": "Networking",
+          "stock": 6
+        }
+      ],
+      "total_books": 4
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: bookstore
+  labels:
+    app: api
+spec:
+  selector:
+    app: api
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# User Service - Handles customer accounts
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: bookstore
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: v1
+    spec:
+      containers:
+      - name: user-service
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: user-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      volumes:
+      - name: user-config
+        configMap:
+          name: user-service-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: bookstore
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        
+        # Add debug headers
+        add_header X-Debug-Service "user-service" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        
+        # Handle /profile endpoint (after /users prefix is stripped)
+        location /profile {
+            add_header Content-Type "application/json";
+            return 200 '{"status":"success","service":"user-service","user":"demo","email":"demo@bookstore.com","membership":"premium","joined":"2025-01-01"}';
+        }
+        
+        # Handle /login endpoint (after /users prefix is stripped)
+        location /login {
+            add_header Content-Type "application/json";
+            return 200 '{"message":"Login endpoint","service":"user-service","note":"POST your credentials here","required_fields":["username","password"]}';
+        }
+        
+        # Handle /health endpoint
+        location /health {
+            add_header Content-Type "application/json";
+            return 200 '{"status":"healthy","service":"user-service","timestamp":"2025-09-16T12:00:00Z"}';
+        }
+        
+        # Root endpoint shows available endpoints  
+        location / {
+            add_header Content-Type "application/json";
+            return 200 '{"message":"User Service v1","service":"user-service","endpoints":["/profile","/login","/health"],"note":"Traefik strips /users prefix"}';
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: bookstore
+  labels:
+    app: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 80
+    targetPort: 80
