@@ -4,4 +4,4 @@
 
 - [Kyverno](https://codingtricks.io/kubernetes-policy-as-code-with-kyverno/)
 - [Self hosted EKS Runner](https://codingtricks.io/create-a-self-hosted-github-action-runner-in-eks/)
-- [Traefik Demo]()
+- [Traefik Demo](https://codingtricks.io/complete-traefik-kubernetes-microservices-tutorial-beginners/)

@@ -39,5 +39,5 @@ localhost
 ## Cluster Cleanup
 
 ```bash
-kind delete cluster --name traefik-demo
+kind delete cluster --name traefik-demo 
 ```
