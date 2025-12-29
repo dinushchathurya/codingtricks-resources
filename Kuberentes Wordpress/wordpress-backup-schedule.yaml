@@ -1,0 +1,37 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: wordpress-daily-backup
+  namespace: velero
+spec:
+  # Daily at 2 AM
+  schedule: "0 2 * * *"
+  template:
+    # Include only WordPress namespace
+    includedNamespaces:
+    - wordpress
+    # Include PVs
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    # Backup TTL (30 days)
+    ttl: 720h0m0s
+    # Backup hooks for database consistency
+    hooks:
+      resources:
+      - name: mysql-backup-hook
+        includedNamespaces:
+        - wordpress
+        labelSelector:
+          matchLabels:
+            app: wordpress
+            tier: mysql
+        pre:
+        - exec:
+            container: mysql
+            command:
+            - /bin/bash
+            - -c
+            - mysqldump --all-databases > /tmp/backup.sql
+            onError: Fail
+            timeout: 3m
