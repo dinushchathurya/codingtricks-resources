@@ -13,6 +13,8 @@ data:
     appendfilename "appendonly.aof"
     appendfsync everysec
     dir /data
+    requirepass YourStrongPasswordHere
+    masterauth YourStrongPasswordHere
     
     # Memory management
     maxmemory 512mb
@@ -34,3 +36,4 @@ data:
     # Logging
     loglevel notice
     logfile ""
+
