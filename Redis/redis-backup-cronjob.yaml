@@ -1,0 +1,26 @@
+# redis-backup-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: redis-cluster
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: redis:7.2-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              for i in 0 1 2; do
+                kubectl exec redis-cluster-$i -n redis-cluster -- redis-cli BGSAVE
+              done
+              sleep 60
+              kubectl exec redis-cluster-0 -n redis-cluster -- tar czf /tmp/backup-$(date +%Y%m%d).tar.gz /data
+              # Upload to S3 or other storage
+          restartPolicy: OnFailure
