@@ -1,4 +1,4 @@
-## Scripts used in the blog posts
+## Scripts used in the blog posts in codingtricks.io
 
 ### Table of contents
 
